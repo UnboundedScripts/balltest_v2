@@ -8,6 +8,15 @@ local Library = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
+local HttpService = game:GetService("HttpService") --Define some required variables
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local http = game:GetService("HttpService")
+local player = game.Players.LocalPlayer
+local leaderstats = player:WaitForChild("leaderstats")
+local wins = leaderstats:WaitForChild("Wins")
+local previousValue = wins.Value or 0
+
 local Window = Fluent:CreateWindow({  
     Title = "ball test",
     SubTitle = "by rhuda21 ",
@@ -21,11 +30,11 @@ local Window = Fluent:CreateWindow({
 -- Fluent provides Lucide Icons, they are optional
 local Tabs = {  --Where Tabs Are defined
     Main = Window:AddTab({ Title = "Main", Icon = "" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
-    Webhook = Window:AddTab({ Title = "Webhook", Icon = "webhook" }),
     Farm = Window:AddTab({ Title = "Farm", Icon = "tractor" }),
     Teleports = Window:AddTab({ Title = "Teleports", Icon = "" }),
+    Webhook = Window:AddTab({ Title = "Webhook", Icon = "webhook" }),
     Fun = Window:AddTab({Title = "Fun", Icon = "" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
 }
 
 Tabs.Main:AddButton({
@@ -165,3 +174,95 @@ Tabs.Teleports:AddButton({
     end
 })
 
+
+--Function for the Webhook
+local function SendMessageEMBED(url, embed)
+    local response = request({
+        Url = url,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = http:JSONEncode({
+            embeds = {{
+                title = embed.title,
+                description = embed.description,
+                color = embed.color,
+                fields = embed.fields,
+                footer = {text = embed.footer.text}
+            }}
+        })
+    })
+    print("The Webhook has been sent!")
+end
+
+
+--Add a input field for Webhook URL
+local webhookUrl = ""
+local Input = Tabs.Webhook:AddInput("Input", {
+    Title = "Webhook URL",
+    Description = "Enter your webhook URL ",
+    Default = webhookUrl,
+    Placeholder = "Enter Webhook URL",
+    Numeric = false, --Only allow numbers
+    Finished = true, --Only call callback when enter is pressed
+    Callback = function(Value)
+        webhookUrl = Value
+        warn("The Webhook URL has be changed to:", webhookUrl)
+    end
+})
+
+-- Add a button to the Webhook tab to send a test message
+Tabs.Webhook:AddButton({
+    Title = "Send Test Message",
+    Description = "Sends a test message to the configured webhook",
+    Callback = function()
+        if webhookUrl ~= "" then
+            SendMessageEMBED(webhookUrl, {
+                title = "Test Message",
+                description = "This is a test message from the ball test script!",
+                color = 65280,
+                fields = {},
+                footer = {text = "If you can see this the connection is established!"}
+            })
+        else
+            print("Webhook URL is not set.")
+        end
+    end
+})
+
+
+local Toggle = Tabs.Webhook:AddToggle("MyToggle", 
+{
+    Title = "Notify when new Win", 
+    Description = "Sends a message to your webhook when you get a win",
+    Default = false,
+    Callback = function(state)
+	if state then
+	    -- Function to handle value changes
+local function onWinsChanged(newValue)
+    if newValue == previousValue + 1 then
+        print("Wins increased by 1!")
+        -- Send the webhook message
+        if webhookUrl ~= "" then
+            SendMessageEMBED(webhookUrl, {
+                title = "Wins Update",
+                description = "The wins have increased!",
+                color = 65280,
+                fields = {
+                    {name = "Previous Wins", value = tostring(previousValue), inline = true},
+                    {name = "Current Wins", value = tostring(newValue), inline = true}
+                },
+                footer = {text = "If you can see this, the connection is established!"}
+            })
+        end
+    end
+    -- Update the previous value
+    previousValue = newValue
+end
+
+-- Connect the function to the Changed event
+wins.Changed:Connect(onWinsChanged)
+	else
+	    print("Toggle Off")
+        end
+    end 
+})
